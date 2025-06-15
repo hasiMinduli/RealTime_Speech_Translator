@@ -25,17 +25,17 @@ A Flask-based interface for real-time speech translation using mic and WAV input
 
 AZURE_SPEECH_KEY = "your_azure_speech_key"
 AZURE_REGION = "your_azure_region"
-
+```
 4.Install the needed python packages
 
 ```bash
 pip install -r requirements.txt
-
+```
 5.Run the app
 
-## How to Run
-
 ```bash
-python app.py
 
+## How to Run
+python app.py
+```
 ⚠️ Remember: Never share your config.py with your real keys publicly!
