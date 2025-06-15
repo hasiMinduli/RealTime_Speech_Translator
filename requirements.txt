@@ -1,0 +1,5 @@
+flask 
+flask-socketio 
+azure-cognitiveservices-speech 
+requests
+eventlet

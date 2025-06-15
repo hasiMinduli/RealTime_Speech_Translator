@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Translator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">Speech Translation System</div>
+        <div style="padding: 40px; text-align: center;">
+            <h2>Select Your Role</h2>
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 30px;">
+                <button onclick="location.href='/customer'">Customer</button>
+                <button onclick="location.href='/agent'">Agent</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

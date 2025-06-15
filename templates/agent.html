@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent Interface</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">Agent Chat Interface</div>
+    <div class="chat-box" id="conversation"></div>
+
+    <div class="button-container">
+      <button id="start">🎙️ Start Mic Translation</button>
+    </div>
+
+    <div style="padding: 10px; background: #fff;">
+      <label for="source_language">My Language (Agent):</label>
+      <select id="source_language">
+        <option value="si-LK">Sinhala</option>
+        <option value="en-US">English</option>
+      </select>
+
+      <br /><br />
+
+      <label for="target_language">Customer's Language:</label>
+      <select id="target_language">
+        <option value="en-US">English</option>
+        <option value="si-LK">Sinhala</option>
+        <option value="ja-JP">Japanese</option>
+        <option value="fr-FR">French</option>
+        <option value="wuu-CN">Chinese</option>
+        <option value="es-ES">Spanish</option>
+        <option value="de-DE">German</option>
+        <option value="ru-RU">Russian</option>
+        <option value="hi-IN">Hindi</option>
+      </select>
+    </div>
+
+    <div class="file-upload-container">
+      <input type="file" id="audio-file" accept=".wav" />
+      <button id="upload-btn">📤 Upload & Translate WAV</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const socket = io();
+      let isListening = false;
+
+      const sourceLangInput = document.getElementById("source_language");
+      const targetLangInput = document.getElementById("target_language");
+
+      // Mic Translation Start
+      document.getElementById("start").addEventListener("click", () => {
+        if (!isListening) {
+          const sourceLang = sourceLangInput.value;
+          const targetLang = targetLangInput.value;
+          socket.emit("start_agent_speech", {
+            source_language: sourceLang,
+            target_language: targetLang
+          });
+          isListening = true;
+        }
+      });
+
+      // Sync languages
+      targetLangInput.addEventListener("change", () => {
+        socket.emit("update_agent_language", targetLangInput.value);
+      });
+
+      socket.on("update_agent_language", (newLang) => {
+        targetLangInput.value = newLang;
+      });
+
+      // Real-time mic translation events
+      socket.on("show_agent_original", (data) => {
+        addMessage("agent",data.original);
+      });
+
+      socket.on("send_to_customer_translated", (data) => {
+        socket.emit("send_to_customer", {
+          original: data.original,
+          translated: data.translated,
+          target_language: targetLangInput.value
+        });
+      });
+
+      socket.on("receive_customer_message", function (data) {
+        addMessage("customer", data.translated);
+        if (data.target === "agent") {
+            speakText(data.translated, document.getElementById("source_language").value, data.audio);
+        }
+      });
+
+
+      // WAV upload handler
+      document.getElementById("upload-btn").addEventListener("click", () => {
+        const file = document.getElementById("audio-file").files[0];
+        if (!file) return alert("Select a WAV file first!");
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("source_lang", sourceLangInput.value);
+        formData.append("target_lang", targetLangInput.value);
+        formData.append("role", "agent");
+
+        fetch("/upload", { method: "POST", body: formData })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === "success") {
+              // addMessage("agent", "You (WAV): " + data.original);
+              socket.emit("send_to_customer", {
+                original: data.original,
+                translated: data.translated,
+                target_language: targetLangInput.value
+              });
+
+              if (data.audio_url) {
+                const audio = new Audio(data.audio_url);
+                audio.play();
+              }
+            } else {
+              alert("Translation failed: " + data.message);
+            }
+          })
+          .catch((err) => {
+            console.error("Upload error:", err);
+            alert("Upload failed.");
+          });
+      });
+
+      // TTS function
+      function speakText(text, lang, audioBase64 = null) {
+        if (audioBase64) {
+            // If the backend already sent audio, just play it
+            const audio = new Audio(`data:audio/wav;base64,${audioBase64}`);
+            audio.play();
+        } else {
+            // Otherwise, fallback to generate TTS via /speak
+            fetch("/speak", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text, language: lang })
+            })
+            .then(response => response.json())
+            .then(result => {
+            if (result.status === "success" && result.audio) {
+                const audio = new Audio(`data:audio/wav;base64,${result.audio}`);
+                audio.play();
+            } else {
+                console.error("TTS error:", result.message);
+            }
+            })
+            .catch(error => console.error("Fetch error:", error));
+        }
+      }
+
+      // Add message to chat
+      function addMessage(role, text) {
+        const chatBox = document.getElementById("conversation");
+        const msg = document.createElement("div");
+        msg.className = `message ${role === "agent" ? "sent" : "received"}`;
+        msg.innerText = text;
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+    });
+  </script>
+</body>
+</html>
